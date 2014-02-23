@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Refactoring to symfony components</title>
+
+		<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+		<meta name="author" content="Hakim El Hattab">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/default.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+
+				<section>
+					<h1>Refactoring to Symfony Components</h1>
+					<h3>...and their friends</h3>
+					<p>
+						<small>Michael Peacock</small>
+					</p>
+				</section>
+				<section>
+					<h2>@michaelpeacock</h2>
+					<ul>
+						<li>PHP Developer / Consultant</li>
+						<li>Technical author</li>
+						<li>Occasional conference speaker</li>
+					</ul>
+				</section>
+				<section>
+					<section>
+						<h2>The components</h2>
+						<p>http://symfony.com/components</p>
+						<aside class="notes">
+							The symfony framework is built using a series of re-usable components, which have been released independantly. These range from browser emulation, to generating console output, to generating forms, validating forms, translating to application routing.
+						</aside>
+					</section>
+					<section>
+						<h2>Why use components</h2>
+						<ul>
+							<li class="fragment">Solve common web application problems</li>
+							<li class="fragment">Incredibly well documented</li>
+							<li class="fragment">(relatively) Standalone: use them how you like</li>
+							<li class="fragment">Ideal for refactoring</li>
+						</ul>
+						<aside class="notes">
+							4 fragments. solve probs; well docd; standalone; refactoring.<br />
+							Why are they ideal for refactoring: let you upgrade one piece at a time, stand alone, etc, let you focus on your business logic not the common stuff most web applications need.
+						</aside>
+					</section>
+					<section>
+						<h2>Installation</h2>
+						<p>Composer: the knight in shining armour</p>
+						<p>Download it</p>
+						<pre><code contenteditable>curl -s https://getcomposer.org/installer | php</code></pre>
+						<p>Create a composer.json file</p>
+						<pre><code contenteditable>{
+    "require": {
+    	"symfony/the-project-name": "dev-master",
+    }
+}</code></pre>
+<p>Run composer</p>
+<pre><code contenteditable>php composer.phar install</code></pre>
+<aside class="notes">
+	The components are easily installable through composer, which makes adding them to your project either one at time or all in one go, a breeze. Using this approach it is also easy to check the components you have running are secure, by running your composer.lock file through the symfony security checker.
+</aside>
+					</section>
+					<section>
+						<h2>Their friends</h2>
+						<aside class="notes">
+							<ul><li>Swift mailer
+							</li>
+							<li>Twig</li>
+							<li>Pimple</li>
+							<li>Desarrolla2\Cache</li></ul>
+						</aside>
+					</section>
+				</section>
+				<section>
+					<h2>What's in store</h2>
+					<ul>
+						<li>Autoloading classes with ClassLoader</li>
+						<li>Routing requests with Routing</li>
+						<li>Listening for events with the EventDispatcher</li>
+						<li>Parsing YAML files with the YAML component</li>
+						<li>HTTP Requests and responses with HTTPFoundation</li>
+						<li>Injecting dependencies with Pimple</li>
+						<li>Templates with Twig</li>
+					</ul>
+				</section>
+				<section>
+					<section>
+						<h1>Our refactoring tale</h1>
+						<h3>Speed up development &amp; modernise legacy codebase</h3>
+						<aside class="notes">8 months ago I got involved in a legacy application; for a local news service wanting to go national. They had a great developer there working on the product, but due to the codebase being a legacy hand-me-down from many developers before him, it was slow to add new features.<br />
+							We were given the mandate to replatform the product to make it quicker to build on, and to add a range of new features at the same time.<br />
+							For us the choice was between something existing (Drupal, wordpress, Joomla), something brand new, or something else.<br />Because of the amount of data, tight deadlines, and business logic trapped in the code, we opted to refactor what was already there. A process which saw us refactor in small iterations, focusing more and more on what the application does.
+						</aside>
+					</section>
+					<section>
+						<h2>Our journey</h2>
+						<ul>
+							<li>Messy structure, some procedural code: ClassLoader</li>
+							<li>Globals, singletons and crazy objects: Pimple</li>
+							<li>Scattered routing logic, long if/else conditions: Routing</li>
+							<li>Hardcoded configurations: YAML</li>
+							<li>Duplicated logic: EventDispatcher</li>
+							<li>PHP &amp; HTML mixed together: Twig</li>
+							<li>Duplicate form logic, spagetti code: Validator (Fuel)</li>
+							<li>Other improvements: Mailer, HTTPFoundation, Translation &amp; Validator</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Messy structure &amp; procedural code</h2>
+						<aside class="notes">The legacy code was messy, with files all over the place, some of it was proceedural, some of it objects, some of them singletones. We needed to be able to restructure the application into something which made more sense, gradually, and have these files available when classes are autoloaded.</aside>
+					</section>
+					<section>
+						<h2>Class Loader</h2>
+						<aside class="notes">This is where the class loader comes in; provided we structure our code in a suitable way, the symfony class loader can automatically pull in our files, with us focusing on the application and not the logic for autoloading the files.</aside>
+					</section>
+					<section>
+						<h2>Laying the foundations</h2>
+						<ul>
+							<li>Controllers</li>
+							<li>PSR-0<ul><li>Namespace the code</li><li>Restructure into a better directory heirarchy</li><li>Component based structure for our own code too</li></ul></li>
+						</ul>
+						<aside class="notes">The first thing we did to refactor the code was move our procedural code to objects; this particularly affected the controllers, which were only objects when the controller actions dealt with form processing, other controllers were simply files that were included and executed in a monolithic fashion.</aside>
+					</section>
+					<section>
+						<h2>Usage</h2>
+						<pre><code contenteditable>$namespaces = array(
+    'VendorName\\Namespace' => __DIR__ .'/',
+    'VendorName\\AnotherNamespace' => __DIR__ .'/'
+);</code></pre>
+						<pre><code contenteditable>$loader = new \Symfony\Component\ClassLoader\UniversalClassLoader();
+$loader->register();
+$loader->registerNamespaces($namespaces);</code></pre>
+<aside class="notes">Using it is really straight forward, we create an array map of our namespaces and their containing folder, we create a new instance of the universal class loader, register the class loader, and then tell the class loader to register our namespaces.</aside>
+					</section>
+					<section>
+						<h2>Caching</h2>
+						<p>Support for APC available, just needs to be enabled</p>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Globals, singletons and crazy objects</h2>
+						<aside class="notes">The code used globals, singletones and crazy god-like objects to ensure the application was aware of its dependencies such as database, authentication and so on.  This was a big problem, as it wasn't clear what used what, nor was it easy for us to reuse, test or maintain.</aside>
+					</section>
+					<section>
+						<h2>Pimple</h2>
+						<img src="images/capacitor.jpg" class="image" width="600px;" />
+						<p>Pimple is a dependency injection container which lets us easily manage and inject our dependencies into our projects.  We put the dependencies into a container, and then we inject this container into our code which uses it.</p>
+					</section>
+					<section>
+						<h2>Refactoring to use a container</h2>
+						<pre class="fragment"><code contenteditable>&lt;?php
+class SomeModel
+{
+	public function __construct()
+	{
+		$sql = "";
+		$query = Database::query($sql);
+	}
+
+}</code><strong>before</strong></pre>
+<pre class="fragment"><code contenteditable>&lt;?php
+class SomeModel
+{
+	public function __construct($container=array())
+	{
+		// TODO: further refactor once d.i.c. in place
+		$sql = "";
+		$query = Database::query($sql);
+	}
+}</code><strong>after</strong></pre>
+<aside class="notes">of course ot use a dependency injection container, our classes need to be updated to support an injected dependency injection container. As we don't yet have the container, we make the injection optional, and for the moment continue using the old, non injected methods. Now however, we can build our injection container and put dependencies in it.</aside>
+					</section>
+					<section>
+						<h2>Lazy loading</h2>
+						<p>By utilising closures, code isn't run until it is first requested / called; i.e. database connection is established only when you first try and use the connection</p>
+						<pre><code contenteditable>$container['db'] = function($c) {
+	return new \PDO("...", $c['db_user'], $c['db_pwd']);
+};</code></pre>
+<aside class="notes">We can then add a dependency to our container by creating a new property in the object (using the ArrayAccess implementation which Pimple provides us).<br />
+	By wrapping the code in a closure, it isn't evaluated until we first try and <strong>access</strong> the PDO object from the container.
+	<br />The paramater passed to the closure is injected by pimple, and is a copy of the container itself.
+
+</aside>
+					</section>
+					<section>
+						<h2>Sharing objects</h2>
+						<pre><code contenteditable>$container['db'] = $container->share(function($c) {
+	return new \PDO("...", $c['db_user'], $c['db_pwd']);
+});</code></pre>
+<aside class="notes">By default, Pimple will always return a new copy of the object when we access it; this isn't very efficient and in many cases isn't what we want (though there are use cases where it is appropriate).
+	<br />
+	If we wrap the closure in a call to the containers share method, then we tell pimple to run on first access, and then store the result for future access.</aside>
+					</section>
+					<section>
+						<h2>Further refactoring</h2>
+						<pre><code contenteditable>&lt;?php
+class SomeModel
+{
+	public function __construct($container=array())
+	{
+		$sql = "";
+		$query = $container['db']->query($sql);
+	}
+}</code></pre>
+					</section>
+					<section>
+						<h2>Creating your own container</h2>
+						<p>Particularly useful for re-use and different use-cases (cli vs web)</p>
+						<pre><code contenteditable>&lt;?php
+namespace Project\Framework\Container;
+
+class MyContainer extends \Pimple
+{
+    public function __construct(array $values = array())
+    {
+        parent::__construct($values);
+        // add things to the container here
+    }
+}</code></pre>
+<aside class="notes">we can extend pimple, all we need to do is implement the constructor, and from here add our dependencies. Makes the container reusable, distributable and lets us have different containers for different use-cases (e.g. web container and a CLI container - has proved quite useful)</aside>
+					</section>
+					<section>
+						<h2>Controller refactoring (before)</h2>
+						<pre><code contenteditable>&lt;?php
+class SomeController
+{
+	// ...
+
+	public function someAction()
+	{
+		$model = new SomeModel($this->container);
+	}
+}
+						</code></pre>
+						<aside class="notes">Now, since the initial refactoring to include pimple, we instantiate objects and pass pimple along...</aside>
+					</section>
+					<section>
+						<h2>Reducing new...containers within containers</h2>
+						<pre><code contenteditable>&lt;?php
+namespace Faceifi\Framework\Container;
+
+
+class DataAccessObjects extends \Pimple
+{
+    public function __construct(array $values = array())
+    {
+        parent::__construct($values);
+
+        $this['user'] = $this->share(function($c) {
+            return new UserDao($c['container']);
+        });
+    }
+}</code></pre>
+						<aside class="notes">
+							Discuss about using pimple as a factory and dao container
+						</aside>
+					</section>
+					<section>
+						<h2>Controller refactoring (after)</h2>
+						<pre><code contenteditable>&lt;?php
+class SomeController
+{
+	// ...
+
+	public function someAction()
+	{
+		$model = $this->container['factories']['some_model']->newModel();
+	}
+}</code></pre>
+<aside class="notes">Similarly we also used these containers for factory management. This allowed us to reduce places where the <strong>new</strong> keyword is used, ensuring objects can be mocked, injected and changed as required.<br /><br />
+	This was particularly helpful when we moved files, objects and classes around; since we had to move them this was an excuse to abstract this out, so any future file moves won't impact so many files.
+</aside>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Hardcoded configurations</h2>
+					</section>
+					<section>
+						<h2>YAML</h2>
+						<img src="images/resistor.jpg" class="image" width="600px" />
+					</section>
+					<section>
+						<h2>A YAML file</h2>
+						<pre><code contenteditable>db_mysql:
+  host: 'localhost'
+  user: 'root'
+  pass: ''
+  name: 'db'
+  port: 3306
+  auto_patch: true
+
+general:
+  production: false
+  skin: 'release'
+  site_url: 'http://localhost:4567/'</code></pre>
+						<aside class="notes"></aside>
+					</section>
+					<section>
+						<h2>Parsing a YAML file</h2>
+							<pre><code contenteditable>$yaml = new Symfony\Component\Yaml\Parser();
+
+$parsed_settings = $yaml->parse(file_get_contents(__DIR__.'/config.yml'));</code></pre>
+						<aside class="notes">Once parsed the data from the YAML file is converted into an array.</aside>
+					</section>
+					<section>
+						<h2>Caching</h2>
+						<p>:-(</p>
+						<aside class="notes">Unfortunately there isn't any built in caching, so you would probably want to consider adding your own</aside>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Scattered routing logic, long if/else conditions</h2>
+					</section>
+					<section>
+						<h2>Routing</h2>
+						<img src="images/transistor2.jpg" class="image" />
+					</section>
+					<section>
+						<h2>Refactoring foundations</h2>
+						<p>Mostly taken care of when we ensured all controllers were objects and that the new structure followed PSR-0. Controllers refactored like so:</p>
+						<pre class="fragment"><code contenteditable>public function __construct($container)
+{
+	$this->container = $container;
+}</code></pre>
+<pre class="fragment"><code contenteditable>public function anOldAction($date, $some_id)</code></pre>
+<pre class="fragment"><code contenteditable>public function aNewAction($url_params=array())</code></pre>
+						<aside class="notes">
+							first we had to make everything an object; controller actions needed a single, optional param, and a constructor which accepts a container
+							Perhaps show an empty controller
+						</aside>
+					</section>
+					<section>
+						<h2>Setting it up</h2>
+						<p class="fragment">Alias some of the namespaces</p>
+						<pre class="fragment"><code contenteditable>use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Routing;
+</code></pre>
+<p class="fragment">Prepare dependencies</p>
+<pre class="fragment"><code contenteditable>$locator = new FileLocator(array(FRAMEWORK_PATH));
+$request = (isset($_SERVER['REQUEST_URI']))? $_SERVER['REQUEST_URI']:'';
+$context = new RequestContext($request, $_SERVER['REQUEST_METHOD']);
+</code></pre>
+<p class="fragment">Construct</p>
+<pre class="fragment"><code contenteditable>
+$router = new Routing\Router(new YamlFileLoader($locator), 'routes.yml', array(), $context);</code></pre>
+<aside class="notes">3 fragments<br />
+	- alias some symfony namespaces<br />
+	- prepare the required dependencies<br />
+	- create the routing object
+</aside>
+					</section>
+					<section>
+						<h2>Routes file</h2>
+						<pre><code contenteditable>index:
+  pattern: /
+  defaults: { class: 'Project\Static\Controller', method: 'homePage' }
+  requirements:
+    _method: GET</code></pre>
+    <aside class="notes">Routes file (yaml) has a list of routes, they have a name, a pattern (some regex or string), defaults (explain them) and optionally some requiements (format of URL elements; post/get/put/delete) etc.</aside>
+					</section>
+					<section>
+						<h2>Routing</h2>
+						<pre><code contenteditable>try {
+    $url = (isset($_SERVER['REQUEST_URI'])) ? $_SERVER['REQUEST_URI'] : '';
+    // get rid of the trailing slash
+    $url = (strlen($requestURL) > 1) ? rtrim($requestURL, '/') : $url;
+
+    $route = $router->match($url);
+    $controller = new $route['class']($container);
+    $action = $controller->$route['method']();
+}
+catch (Routing\Exception\ResourceNotFoundException $e) {
+    // todo: 404
+}</code></pre>
+<aside class="notes">Now we can route the request, get the URL being requested, call the route method,.<br />This gives us an array containing the route name, controller and method - as defined in our route file.<br />We can then instantiate the correct controller, and call the correct route action.</aside>
+					</section>
+					<section>
+						<h2>Route variables</h2>
+<pre><code contenteditable>comment_story_add:
+  pattern: /news/{category}/{date}/{article}
+  defaults: { class: 'Comments\Controller::addComment' }
+  requirements:
+    date: "[0-9]{2}-[0-9]{2}-[0-9]{4}"
+    _method: POST</code></pre>
+    <pre><code contenteditable>$route = $router->match($url);
+    $controller = new $route['class']($container);
+    $variables = $route;
+    unset($variables['name'], $variables['class'], $variables['method']);
+    $action = $controller->$route['method']();</code></pre>
+    <aside class="notes">Our routes can also specify custom fragments, and formats for those, e.g. date. We need to pass these to the route, so we remove the other info (route name, controller and method) and pass the resulting array to the route action</aside>
+					</section>
+					<section>
+						<h2>Authentication control</h2>
+						<pre><code contenteditable>account:
+  pattern: /account
+  defaults: { class: 'Project\Account\Controller', method: 'manage', logged_in: true }
+  requirements:
+    _method: GET</code></pre>
+						<pre><code contenteditable>if (isset($route['logged_in'])) {
+    if (is_null($container['user'])) {
+        // User is trying to access logged in only content - redirect to login and store redirect
+        $_SESSION['redirect'] = $_SERVER['REQUEST_URI'];
+        $event = new Events\RequestRedirection($container['settings']['base_url'] . 'login/');
+        $this->container['dispatcher']->dispatch('redirect', $event);
+    }
+}</code></pre>
+					</section>
+					<section>
+						<h2>Route caching</h2>
+						<pre class="fragment"><code contenteditable>
+$router = new Routing\Router(new YamlFileLoader($locator), 'routes.yml', array('cache_dir' => '/var/www/cache/'), $context);</code></pre>
+					</section>
+					<section>
+						<h2>UTM data, etc</h2>
+						<pre><code contenteditable>$url = preg_replace('/&?utm_(.*?)\=[^&]+/', '', $url);
+$url = (substr($url, -1) == '?') ? rtrim($url, '?') : $url;</code></pre>
+<p>http://forums.phpfreaks.com/topic/257622-remove-utm-tags-from-url-regex/</p>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Duplicated logic</h2>
+						<aside class="notes">Our application was filled with duplicated logic, or horribly method dependencies for things like sending emails when certain actions are performed. This makes removing these difficult, introducing new ones difficult, and so on.</aside>
+					</section>
+					<section>
+						<h2>Event dispatcher</h2>
+						<img src="images/microchip.jpg" class="image" width="600px" />
+					</section>
+					<section>
+						<h2>Why?</h2>
+						<aside class="notes">
+							Code should do one thing and do it well. If you have code which saves a comment it should do that, not do that and then email other commenters to inform them. Let it do its job and then raise an event to say its done; then an event listener whose job it is to send those notifications, can pick it up
+							<br />While yes it might be easy to call another method - but its then hard to remove or add other things.
+						</aside>
+					</section>
+					<section>
+						<h2>Use cases</h2>
+						<ul>
+							<li>Redirecting the user / flash notifications</li>
+							<li>Sending transactional emails</li>
+							<li>Adding a product to a basket</li>
+							<li>Hooking into other features to share other features e.g. tweet on content creation</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Redirection &amp; "flash" notifications</h2>
+						<ol>
+							<li>Raise an event</li>
+							<li>Listen for notification events, and log the notification in-session</li>
+							<li>Listen for a redirect event, and redirect</li>
+						</ol>
+						<p>Ordering is important here as we don't want to redirect before setting the session!</p>
+					</section>
+					<section>
+						<h2>Approach</h2>
+						<ul>
+							<li>NotifiableMessageInterface</li>
+							<li>RequestRedirection event</li>
+							<li>RedirectableNotification event (extends and implements the above)</li>
+							<li>Events must extend the symfony event</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Notifiable Message Interface</h2>
+						<pre><code contenteditable>&lt;?php
+namespace Project\Framework\Events;
+
+interface NotifiableMessageInterface
+{
+    public function getNotification();
+
+    // the html class to be applied
+    public function getClass();
+}</code></pre>
+					</section>
+					<section>
+						<h2>Request Redirection Event</h2>
+						<pre><code contenteditable>&lt;?php
+namespace Project\Framework\Events;
+use Symfony\Component\EventDispatcher\Event;
+class RequestRedirection extends Event
+{
+    protected $url;
+
+    public function __construct($url = null)
+    {
+        $this->url = $url;
+    }
+
+    public function getURL()
+    {
+        return $this->url;
+    }
+}</code></pre>
+					</section>
+					<section>
+						<h2>Listener</h2>
+						<pre><code contenteditable>&lt;?php
+namespace Project\Framework\Listeners;
+
+use Project\Framework\Events;
+use Symfony\Component\EventDispatcher\Event;
+
+class SetPersistantNotification
+{
+    public function setNotification( Events\NotifiableMessageInterface $event )
+    {
+        $_SESSION['system_notification'] = $event->getNotification();
+        $_SESSION['system_notification_class'] = $event->getClass();
+    }
+
+}</code></pre>
+					</section>
+					<section>
+						<h2>Another listener</h2>
+						<pre><code contenteditable>&lt;?php
+namespace Project\Framework\Listeners;
+
+use Project\Framework\Events;
+use Symfony\Component\EventDispatcher\Event;
+
+class Redirect
+{
+    public function redirectUser( Events\RequestRedirection $event )
+    {
+    	// TODO: utilise httpframework
+        header("Location: " . $event->getURL() );
+        exit();
+    }
+
+}</code></pre>
+					</section>
+					<section>
+						<h2>Listen up...</h2>
+						<ul>
+							<li>Create an event dispatcher</li>
+<li>Create instance of listener</li>
+<li>Add the listener
+	<ul>
+		<li>Event name</li>
+		<li>A callable e.g. Object/Method array combo, Closure, etc</li>
+		<li>Priority: for multiple listeners listening for the same event</li>
+	</ul></li>
+						</ul>
+					</section>
+					<section>
+						<h2>Listen up</h2>
+						<pre><code contenteditable>$dispatcher = new EventDispatcher();
+
+// Notification (Success, Warning, Error)
+$setPersistantNotification = new Listeners\SetPersistantNotification();
+$dispatcher->addListener('notify', array($setPersistantNotification, 'setNotification'), 10);
+
+// Redirect
+$redirectUser = new Listeners\Redirect();
+$dispatcher->addListener('notifiy', array($redirectUser, 'redirectUser'), 0);</code></pre>
+					</section>
+					<section>
+						<h2>Dispatch</h2>
+						<pre><code contenteditable>$url = $base_url . 'account';
+$message = 'Your password was changed successfuly.';
+$event = new Events\RedirectableNotification($url, $message, 'success');
+$dispatcher->dispatch('notify', $event);</code></pre>
+					</section>
+					<section>
+						<h2>Gotchas</h2>
+						<p>get/set Name</p>
+					</section>
+					<section><h2>Standard event</h2>
+						<p>We tend to use our own event object which extends the symfony one. This holds a payload which is our event related object.</p>
+						<pre><code contenteditable>&lt;?php
+
+namespace Project\Framework\Events;
+
+class Event extends \Symfony\Component\EventDispatcher\Event
+{
+    protected $payLoad;
+
+    public function setPayLoad($payload)
+    {
+        $this->payLoad = $payload;
+    }
+
+    public function getPayLoad()
+    {
+        return $this->payLoad;
+    }
+}</code></pre>
+					</section>
+					<section>
+						<h2>Queueable</h2>
+						<ul>
+							<li>Interface to define an event as something that can be queued</li>
+							<li>Listener to queue the event e.g. in beanstalk</li>
+						</ul>
+						<pre><code contenteditable>&lt;?php
+namespace Project\Framework\Events;
+
+interface QueueableInterface
+{
+    public function getId();
+}</code></pre>
+<aside class="notes">talk about how we do this with image>resize>s3 on FFY</aside>
+					</section>
+					<section>
+						<h2>Queue an event in your listener</h2>
+						<pre><code contenteditable>public function checkEvent(Events\Event $event)
+{
+    if ($event->getPayLoad() instanceof QueueableInterface) {
+		$tubes_map = array('new.user' => 'tweet');
+		$id = $event->getPayLoad()->getId();
+		$tube = $tubes_map[$event->getName()];
+		$this->container['q']->useTube($tube)->put($id))
+    }
+}</code></pre>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>PHP &amp; HTML mixed together</h2>
+					</section>
+					<section>
+						<h2>Twig</h2>
+						<img src="images/led-display.jpg" class="image" width="600px" />
+					</section>
+					<section>
+						<h2>Setup and load</h2>
+						<pre><code contenteditable>// create a twig filesystem loader so it can access templates
+$loader = new \Twig_Loader_Filesystem('templates');
+// create a new twig environment and pass it the loader
+$twig = \Twig_Environment($loader);</code></pre>
+<p>Load and render template</p>
+						<pre><code contenteditable>// load the template
+$twig->loadTemplate('index.twig');
+// render it
+$twig->render(array('title' => 'variable'));</code></pre>
+					</section>
+					<section>
+						<h2>Refactoring to twig</h2>
+						<p>A place to prepare twig and also perform any non-twig presentation logic. Keeps the data de-coupled from the workings of the template engine</p>
+						<pre><code contenteditable>abstract class View
+{
+	public function __construct($container)
+	{
+		$loader = new \Twig_Loader_FileSystem('templates');
+		$this->templateEngine = new \Twig_Environment($loader);
+	}
+
+	public function generate($model=null);
+
+	public function render($template_file)
+	{
+		$this->templateEngine->loadTemplate($template_file);
+		echo $twig->render($this->container->templateVariables);
+		exit;
+	}
+}</code></pre>
+					</section>
+					<section>
+						<h2>Pimple issue / add global</h2>
+						<aside class="notes">Can't modify property, e.g. array, once its in pimple. Options:<br />
+							1. use array access<br />
+							2. use an object that converts to array<br />
+							3. add directly to twig with the addGlobal option
+						</aside>
+					</section>
+					<section>
+						<h2>Twig templates</h2>
+						<pre><code contenteditable>{{ some_variable }}
+
+{# some comment #}
+
+{% set list_of_items = variable.getItems() %}
+
+{% for item in list_of_items %}
+	&lt;li>{{loop.index}}: {{item.name}}&lt;/li>
+{% else %}
+	&lt;li>Empty :-(&lt;/li>
+{% endfor %}</code></pre>
+<aside class="notes">
+	Dot syntax is very special. It can be used to access object properties, object methods, array elements, and even object getter methods.  Templates can also be extended to chain multiple templates together.
+</aside>
+					</section>
+					<section>
+						<h2>Template caching</h2>
+						<p>This caches <strong>compiled templates</strong> not output</p>
+						<pre><code contenteditable>$this->twig = new \Twig_Environment($loader, array(
+                <strong>'cache' => '/var/www/cache/templates/,</strong>
+            ));</code></pre>
+					</section>
+					<section>
+						<h2>Output caching</h2>
+					</section>
+					<section>
+						<h2>Setup output caching</h2>
+						<pre><code contenteditable>use Desarrolla2\Cache\Cache;
+use Desarrolla2\Cache\Adapter\File;
+
+$adapter = new File();
+$adapter->setOption('ttl', (int) $container['misc_config']->cache->ttl);
+try {
+    $adapter->setOption('cacheDir', '/var/www/cache/pages/');
+}
+catch (\Exception $e) {
+    // temporarily let the application use the /tmp folder?
+}
+
+$cache = new Cache($adapter);</code></pre>
+					</section>
+					<section>
+						<h2>Integrating output caching</h2>
+						<pre><code contenteditable>$cache_key = md5($url);
+if ($cache_enabled && $route['cachable']) {
+	if(is_null($this->container['user'] && $cache->has($cache_key)) {
+		echo $cache->get($cache_key);
+		exit;
+	}
+}</code></pre>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Validator (Fuel)</h2>
+						<p>There is a symfony component which does this, though we opted for the Fuel validation component.</p>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>HTTPFoundation</h2>
+						<p>Abstracting superglobals, the HTTP request and the HTTP response</p>
+					</section>
+					<section>
+						<h2>Request</h2>
+						<pre><code contenteditable>use Symfony\Component\HttpFoundation\Request;
+$request = Request::createFromGlobals();</code></pre>
+<p>Provides a <strong>parameter bag</strong> of properties</p>
+<table width="80%">
+	<tr>
+		<th>Property</th>
+		<th>Purpose</th>
+	</tr>
+	<tr>
+		<td>request</td>
+		<td>store $_POST</td>
+	</tr>
+	<tr>
+		<td>query</td>
+		<td>store $_GET</td>
+	</tr>
+	<tr>
+		<td>cookies</td>
+		<td>store $_COOKIE</td>
+	</tr>
+	<tr>
+		<td>attributes</td>
+		<td>application specific</td>
+	</tr>
+	<tr>
+		<td>files</td>
+		<td>$_FILE</td>
+	</tr>
+	<tr>
+		<td>server</td>
+		<td>$_SERVER</td>
+	</tr>
+	<tr>
+		<td>headers
+		</td>
+		<td>subset of $_SERVER</td>
+	</tr>
+</table>
+					</section>
+					<section>
+						<h2>A parameter bag?</h2>
+						<p>Request properties are all ParameterBag or sub-classes
+Provides special methods to manage contents, including:</p>
+<ul>
+	<li>all</li>
+	<li>keys</li>
+	<li>get</li>
+	<li>add</li>
+	<li>set</li>
+	<li>has</li>
+	<li>remove</li>
+</ul>
+					</section>
+					<section>
+						<h2>Response</h2>
+						<pre><code contenteditable>use Symfony\Component\HttpFoundation\Response;
+
+$response = new Response();
+$response->setContent('Hello PHPUK');
+$response->setStatusCode(200);
+$response->headers->set('Content-Type', 'text/plain');
+
+// alternatively...
+$response = new Response('Hello PHPUK', 200, array('content-type', 'text/plain'));
+
+$response->prepare();
+
+// send the response to the user
+$response->send();</code></pre>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Translation</h2>
+						<p>Worth a mention</p>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Swift mailer</h2>
+					</section>
+					<section>
+						<h2>SMTP Transport</h2>
+						<pre><code contenteditable>$transport = \Swift_SmtpTransport::newInstance($container['settings']['smtp']['host'], 25)
+            ->setUsername($container['settings']['smtp']['user'])
+            ->setPassword($container['settings']['smtp']['pass']);</code></pre>
+					</section>
+					<section><h2>Create the message</h2>
+						<pre><code contenteditable>$this->message = \Swift_Message::newInstance($subject)
+	->setFrom(array($from => $from_name))
+	->setTo(array($recipient => $recipient_name))
+	->setBody($body, $content_type);</code></pre>
+					</section>
+					<section>
+						<h2>Send the message</h2>
+						<pre><code contenteditable>$mailer = \Swift_Mailer::newInstance($transport);
+
+return $mailer->send($message);</code></pre>
+					</section>
+				</section>
+
+				<section>
+					<h1>Thanks!</h1>
+					<h3>@michaelpeacock<br />www.michaelpeacock.co.uk</h3>
+					<h3>https://joind.in/8046</h3>
+				</section>
+				<section>
+					<h2>Image credits</h2>
+					<ul>
+						<li>http://www.flickr.com/photos/oskay/275142789/</li>
+						<li>http://www.flickr.com/photos/martin_bircher/5287769680/</li>
+						<li>http://www.flickr.com/photos/tronixstuff/5122815499/</li>
+<li>http://www.flickr.com/photos/tronixstuff/4581416773/</li>
+
+<li>http://www.flickr.com/photos/oskay/437339684/</li>
+
+<li>http://www.flickr.com/photos/oskay/437342078/</li>
+
+<li>http://www.flickr.com/photos/laughingsquid/2885196845/</li>
+					</ul>
+				</section>
+
+			</div>
+
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/showdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+					// { src: 'plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
